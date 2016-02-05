@@ -18,7 +18,7 @@
         <hudson.model.StringParameterDefinition>
           <name>DOCKER_USERNAME</name>
           <description>Username for the Docker Registry Account</description>
-          <defaultValue></defaultValue>
+          <defaultValue>bccvl</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>DOCKER_EMAIL</name>
@@ -28,7 +28,7 @@
         <hudson.model.PasswordParameterDefinition>
           <name>DOCKER_PASSWORD</name>
           <description>Docker Registry Password</description>
-          <defaultValue>EwQA/L9mARG8pe/rT1Kw38q6xPsKJaFCYAUrQSB+pcWQzVOOl7VC+CtlnfyinZ7usMtkG/4kL28u7owLHKoMDAu3Yo1Cp5YXxqTV6IpG9M8=</defaultValue>
+          <defaultValue>C7dijUKnlhfGpNXoikb0zw==</defaultValue>
         </hudson.model.PasswordParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>DOCKER_REGISTRY</name>
@@ -80,7 +80,7 @@ sudo docker-compose $COMPOSE_ARGS rm --force -v
 
 #build the system
 # TODO: evaluate if builds should use --no-cache 
-if [ $HAS_TAG -eq 0 ]; then
+if [ $HAS_TAG = true ]; then
   BUILD_ARGS=&quot; --no-cache &quot;
 fi
 

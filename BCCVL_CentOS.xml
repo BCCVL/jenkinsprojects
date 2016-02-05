@@ -1,0 +1,150 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.17.0">
+      <projectUrl>https://github.com/BCCVL/centos/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.BooleanParameterDefinition>
+          <name>DOCKER_PUSH</name>
+          <description>Flag to indicate that successful builds should be pushed to the selected docker registry</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_USERNAME</name>
+          <description>Username for the Docker Registry Account</description>
+          <defaultValue>bccvl</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_EMAIL</name>
+          <description>Email Address for the Docker Registry Account</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.PasswordParameterDefinition>
+          <name>DOCKER_PASSWORD</name>
+          <description>Docker Registry Password</description>
+          <defaultValue>C7dijUKnlhfGpNXoikb0zw==</defaultValue>
+        </hudson.model.PasswordParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_REGISTRY</name>
+          <description>Docker Registry URL</description>
+          <defaultValue>hub.docker.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@2.4.2">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/BCCVL/centos.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>*/master</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>set +e
+TAG=$(git describe --tags --exact-match)
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
+HASH=$(git rev-parse --short HEAD)
+BRANCH_NAME=${GIT_BRANCH##origin/}
+
+#build the system
+# TODO: evaluate if builds should use --no-cache 
+#if [ $HAS_TAG = true ]; then
+#  BUILD_ARGS=&quot; --no-cache &quot;
+#fi
+BUILD_ARGS=&quot; --no-cache &quot;
+
+sudo docker build --rm=true $BUILD_ARGS -t ${DOCKER_REGISTRY}/bccvl/centos7-epel .
+exit $?</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>set +e
+TAG=$(git describe --tags --exact-match)
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
+HASH=$(git rev-parse --short HEAD)
+BRANCH_NAME=${GIT_BRANCH##origin/}
+
+set -e
+
+sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/centos7-epel:$HASH
+sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/centos7-epel:&quot;${BRANCH_NAME}-latest&quot;
+
+if [ $HAS_TAG = true ]; then
+  sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/centos7-epel:$TAG
+  if [ $BRANCH_NAME = &quot;master&quot; ]; then
+     sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/centos7-epel:latest
+  fi
+fi</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>set +e
+TAG=$(git describe --tags --exact-match)
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
+HASH=$(git rev-parse --short HEAD)
+BRANCH_NAME=${GIT_BRANCH##origin/}
+
+set -e
+
+if [ $DOCKER_PUSH = true ]; then
+  echo &quot;Pushing&quot;
+  if [[ ! -z ${DOCKER_USERNAME+x} ]] &amp;&amp; [[ ! -z ${DOCKER_PASSWORD+x} ]]; then
+    if [[ -z ${DOCKER_EMAIL+x} ]]; then
+      DOCKER_EMAIL=&quot;${DOCKER_USERNAME}@localhost&quot;
+    fi
+    sudo docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
+  fi
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/centos7-epel:$HASH
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/centos7-epel:&quot;${BRANCH_NAME}-latest&quot;
+  if [ $HAS_TAG = true ]; then
+      sudo docker push ${DOCKER_REGISTRY}/bccvl/centos7-epel:$TAG
+      if [ $BRANCH_NAME = &quot;master&quot; ]; then        
+        sudo docker push ${DOCKER_REGISTRY}/bccvl/centos7-epel:latest
+      fi
+  fi
+else
+  echo &quot;Pushing of images disabled&quot;
+fi </command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <hudson.plugins.ws__cleanup.PreBuildCleanup plugin="ws-cleanup@0.28">
+      <deleteDirs>false</deleteDirs>
+      <cleanupParameter></cleanupParameter>
+      <externalDelete></externalDelete>
+    </hudson.plugins.ws__cleanup.PreBuildCleanup>
+  </buildWrappers>
+</project>
