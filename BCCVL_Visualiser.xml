@@ -28,7 +28,7 @@
         <hudson.model.PasswordParameterDefinition>
           <name>DOCKER_PASSWORD</name>
           <description>Docker Registry Password</description>
-          <defaultValue>3yUXhuU+/7PeB93tbZEH/Q==</defaultValue>
+          <defaultValue>SzEPYP7S/KEBMToM3NHqJ/ZIrlM4k6bFKArd377/qRPZIR5QUWvU342+S593DNvR</defaultValue>
         </hudson.model.PasswordParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>DOCKER_REGISTRY</name>
@@ -155,6 +155,9 @@ set -e
 if [ $DOCKER_PUSH = true ]; then
   echo &quot;Pushing&quot;
   if [[ ! -z ${DOCKER_USERNAME+x} ]] &amp;&amp; [[ ! -z ${DOCKER_PASSWORD+x} ]]; then
+    if [[ -z ${DOCKER_EMAIL+x} ]]; then
+      DOCKER_EMAIL=&quot;${DOCKER_USERNAME}@localhost&quot;
+    fi
     sudo docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
   fi
   sudo docker push ${DOCKER_REGISTRY}/bccvl/visualiser:$HASH
