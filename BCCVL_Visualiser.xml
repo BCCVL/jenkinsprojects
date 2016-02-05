@@ -3,7 +3,41 @@
   <actions/>
   <description></description>
   <keepDependencies>false</keepDependencies>
-  <properties/>
+  <properties>
+    <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.17.0">
+      <projectUrl>https://github.com/BCCVL/BCCVL_Visualiser/</projectUrl>
+      <displayName></displayName>
+    </com.coravy.hudson.plugins.github.GithubProjectProperty>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.BooleanParameterDefinition>
+          <name>DOCKER_PUSH</name>
+          <description>Flag to indicate that successful builds should be pushed to the selected docker registry</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_USERNAME</name>
+          <description>Username for the Docker Registry Account</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_EMAIL</name>
+          <description>Email Address for the Docker Registry Account</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.PasswordParameterDefinition>
+          <name>DOCKER_PASSWORD</name>
+          <description>Docker Registry Password</description>
+          <defaultValue>3yUXhuU+/7PeB93tbZEH/Q==</defaultValue>
+        </hudson.model.PasswordParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>DOCKER_REGISTRY</name>
+          <description>Docker Registry URL</description>
+          <defaultValue>hub.docker.com</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
   <scm class="hudson.plugins.git.GitSCM" plugin="git@2.4.1">
     <configVersion>2</configVersion>
     <userRemoteConfigs>
@@ -32,7 +66,11 @@
 #Default compose args
 COMPOSE_ARGS=&quot; -f jenkins.yml -p jenkins &quot;
 TAG=$(git describe --tags --exact-match)
-HAS_TAG=$?
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
 HASH=$(git rev-parse --short HEAD)
 BRANCH_NAME=${GIT_BRANCH##origin/}
 
@@ -47,6 +85,20 @@ if [ $HAS_TAG -eq 0 ]; then
 fi
 
 sudo docker-compose $COMPOSE_ARGS build $BUILD_ARGS
+return $?</command>
+    </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>set +e
+#Default compose args
+COMPOSE_ARGS=&quot; -f jenkins.yml -p jenkins &quot;
+TAG=$(git describe --tags --exact-match)
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
+HASH=$(git rev-parse --short HEAD)
+BRANCH_NAME=${GIT_BRANCH##origin/}
 
 #Run unit tests
 RANDID=$(date | md5sum | head -c 6)
@@ -54,6 +106,7 @@ CONTAINER_ID=jenkins_visualiser_$RANDID
 sudo docker-compose $COMPOSE_ARGS run --no-deps -e ENV=UNIT --name=$CONTAINER_ID visualiser
 ERR=$?
 sudo docker cp $CONTAINER_ID:/tmp/nosetests.xml ./nosetests.xml
+
 sudo docker rm --force $CONTAINER_ID
 
 sudo docker-compose $COMPOSE_ARGS up -d --no-build
@@ -65,28 +118,14 @@ if [ $ERR -eq 0 ]; then
   CODE=$(curl -sL -w &quot;%{http_code}&quot; $IP:10600/api -o /dev/null) || true
   if [ $CODE -eq 200 ]; then
     echo &quot;Test passed - Tagging&quot;
-    sudo docker tag -f jenkins_visualiser bccvl/visualiser:$HASH
-    sudo docker tag -f jenkins_visualiser bccvl/visualiser:&quot;${BRANCH_NAME}-latest&quot;
-    if [ $HAS_TAG -eq 0 ]; then
-      sudo docker tag -f jenkins_visualiser bccvl/visualiser:$TAG
+    sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/visualiser:$HASH
+    sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/visualiser:&quot;${BRANCH_NAME}-latest&quot;
+    if [ $HAS_TAG = true ]; then
+      sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/visualiser:$TAG
         if [ $BRANCH_NAME = &quot;master&quot; ]; then
-          sudo docker tag -f jenkins_visualiser bccvl/visualiser:latest
+          sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/visualiser:latest
         fi
-    fi
-    if [ $DOCKER_PUSH -eq 1 ]; then
-      echo &quot;Pushing&quot;
-      sudo docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-      sudo docker push bccvl/visualiser:$HASH
-      sudo docker push bccvl/visualiser:&quot;${BRANCH_NAME}-latest&quot;
-      if [ $HAS_TAG -eq 0 ]; then
-          sudo docker push bccvl/visualiser:$TAG
-          if [ $BRANCH_NAME = &quot;master&quot; ]; then        
-            sudo docker push bccvl/visualiser:latest
-          fi
-      fi
-    else
-      echo "Pushing of images disabled"
-    fi    
+    fi   
   else
     echo &quot;Site returned &quot; $CODE
     ERR=1
@@ -100,6 +139,36 @@ sudo docker-compose $COMPOSE_ARGS rm --force -v
 return $ERR
 </command>
     </hudson.tasks.Shell>
+    <hudson.tasks.Shell>
+      <command>set +e
+COMPOSE_ARGS=&quot; -f jenkins.yml -p jenkins &quot;
+TAG=$(git describe --tags --exact-match)
+if [ $? -eq 0 ]; then
+  HAS_TAG=true
+else
+  HAS_TAG=false
+fi
+HASH=$(git rev-parse --short HEAD)
+BRANCH_NAME=${GIT_BRANCH##origin/}
+set -e
+
+if [ $DOCKER_PUSH = true ]; then
+  echo &quot;Pushing&quot;
+  if [[ ! -z ${DOCKER_USERNAME+x} ]] &amp;&amp; [[ ! -z ${DOCKER_PASSWORD+x} ]]; then
+    sudo docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
+  fi
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/visualiser:$HASH
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/visualiser:&quot;${BRANCH_NAME}-latest&quot;
+  if [ $HAS_TAG = true ]; then
+      sudo docker push ${DOCKER_REGISTRY}/bccvl/visualiser:$TAG
+      if [ $BRANCH_NAME = &quot;master&quot; ]; then        
+        sudo docker push ${DOCKER_REGISTRY}/bccvl/visualiser:latest
+      fi
+  fi
+else
+  echo &quot;Pushing of images disabled&quot;
+fi </command>
+    </hudson.tasks.Shell>
   </builders>
   <publishers>
     <hudson.tasks.junit.JUnitResultArchiver plugin="junit@1.2-beta-4">
@@ -109,5 +178,11 @@ return $ERR
       <healthScaleFactor>1.0</healthScaleFactor>
     </hudson.tasks.junit.JUnitResultArchiver>
   </publishers>
-  <buildWrappers/>
+  <buildWrappers>
+    <hudson.plugins.ws__cleanup.PreBuildCleanup plugin="ws-cleanup@0.28">
+      <deleteDirs>false</deleteDirs>
+      <cleanupParameter></cleanupParameter>
+      <externalDelete></externalDelete>
+    </hudson.plugins.ws__cleanup.PreBuildCleanup>
+  </buildWrappers>
 </project>
