@@ -5,7 +5,7 @@
   <keepDependencies>false</keepDependencies>
   <properties>
     <com.coravy.hudson.plugins.github.GithubProjectProperty plugin="github@1.17.0">
-      <projectUrl>https://github.com/BCCVL/plone/</projectUrl>
+      <projectUrl>https://github.com/BCCVL/postgis/</projectUrl>
       <displayName></displayName>
     </com.coravy.hudson.plugins.github.GithubProjectProperty>
     <hudson.model.ParametersDefinitionProperty>
@@ -52,7 +52,7 @@
     <configVersion>2</configVersion>
     <userRemoteConfigs>
       <hudson.plugins.git.UserRemoteConfig>
-        <url>https://github.com/BCCVL/plone.git</url>
+        <url>https://github.com/BCCVL/postgis.git</url>
       </hudson.plugins.git.UserRemoteConfig>
     </userRemoteConfigs>
     <branches>
@@ -103,7 +103,7 @@ fi
 
 BUILD_ARGS=&quot; --no-cache &quot;
 
-sudo docker build --rm=true $BUILD_ARGS -t ${DOCKER_REGISTRY}/bccvl/plone .
+sudo docker build --rm=true $BUILD_ARGS -t ${DOCKER_REGISTRY}/bccvl/postgis .
 exit $?</command>
     </hudson.tasks.Shell>
     <hudson.tasks.Shell>
@@ -119,13 +119,13 @@ BRANCH_NAME=${GIT_BRANCH##origin/}
 
 set -e
 
-sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/plone:4.3.7-$HASH
-sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/plone:&quot;4.3.7-${BRANCH_NAME}-latest&quot;
+sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/postgis:9.5.0-$HASH
+sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/postgis:&quot;9.5.0-${BRANCH_NAME}-latest&quot;
 
 if [ $HAS_TAG = true ]; then
-  sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/plone:4.3.7-$TAG
+  sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/postgis:9.5.0-$TAG
   if [ $BRANCH_NAME = &quot;master&quot; ]; then
-     sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/plone:latest
+     sudo docker tag -f jenkins_visualiser ${DOCKER_REGISTRY}/bccvl/postgis:latest
   fi
 fi</command>
     </hudson.tasks.Shell>
@@ -150,12 +150,12 @@ if [ $DOCKER_PUSH = true ]; then
     fi
     sudo docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD $DOCKER_REGISTRY
   fi
-  sudo docker push ${DOCKER_REGISTRY}/bccvl/plone:4.3.7-$HASH
-  sudo docker push ${DOCKER_REGISTRY}/bccvl/plone:&quot;4.3.7-${BRANCH_NAME}-latest&quot;
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/postgis:9.5.0-$HASH
+  sudo docker push ${DOCKER_REGISTRY}/bccvl/postgis:&quot;9.5.0-${BRANCH_NAME}-latest&quot;
   if [ $HAS_TAG = true ]; then
-      sudo docker push ${DOCKER_REGISTRY}/bccvl/plone:4.3.7-$TAG
+      sudo docker push ${DOCKER_REGISTRY}/bccvl/postgis:9.5.0-$TAG
       if [ $BRANCH_NAME = &quot;master&quot; ]; then        
-        sudo docker push ${DOCKER_REGISTRY}/bccvl/plone:latest
+        sudo docker push ${DOCKER_REGISTRY}/bccvl/postgis:latest
       fi
   fi
 else
